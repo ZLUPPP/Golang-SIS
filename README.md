@@ -83,10 +83,30 @@ Run the application with the default format:
 go run ./cmd/sis -p "test.log"
 ```
 
-Use a custom format:
+Also works with pipes
+
+```powershell
+go build -o la ./cmd/sis
+cat test.log | ./la
+```
+
+The `-p` flag can be omitted when input is provided through stdin:
+
+```bash
+./la < test.log
+```
+
+**Use a custom format:**
 
 ```powershell
 go run ./cmd/sis -p "test.log" -f "%Y-%m-%d [%LEVEL] %MESSAGE"
+```
+
+or
+
+```powershell
+cat test.log | la -f "%Y-%m-%d [%LEVEL] %MESSAGE"
+la -p - -f "%Y-%m-%d [%LEVEL] %MESSAGE" < test.log
 ```
 
 Display help:

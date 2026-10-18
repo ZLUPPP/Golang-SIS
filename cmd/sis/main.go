@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"log.analizer/internal/application"
 	"log.analizer/internal/domain"
@@ -42,7 +43,11 @@ Examples:
 `)
 	}
 
-	path := flag.String("p", "", "path to the log file")
+	var source io.Reader = os.Stdin
+	var file *os.File
+	var err error
+
+	path := flag.String("p", "", "path to the log file; use - or omit to read stdin")
 	format := flag.String(
 		"f",
 		"%Y-%m-%d %LEVEL %MESSAGE",
@@ -51,12 +56,18 @@ Examples:
 
 	flag.Parse()
 
-	if *path == "" {
-		fmt.Fprintln(os.Stderr, "file path is required: use -p")
-		os.Exit(1)
+	if *path != "" && *path != "-" {
+		file, err = os.Open(*path)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "open log file:", err)
+			os.Exit(1)
+		}
+		defer file.Close()
+
+		source = file
 	}
 
-	entries, err := readLogFile(*path, *format)
+	entries, err := readLogs(source, *format)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "read logs:", err)
 		os.Exit(1)
@@ -88,27 +99,20 @@ Examples:
 	fmt.Printf("Most common error: %s\n", result.MostCommonError)
 }
 
-func readLogFile(path string, format string) ([]domain.LogEntry, error) {
+func readLogs(source io.Reader, format string) ([]domain.LogEntry, error) {
 	lineParser, err := parser.New(format)
 	if err != nil {
 		return nil, err
 	}
 
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
 	var entries []domain.LogEntry
-
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(source)
 	lineNumber := 0
 
 	for scanner.Scan() {
 		lineNumber++
 
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
 		}
